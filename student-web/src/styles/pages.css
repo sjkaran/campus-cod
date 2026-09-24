@@ -1,0 +1,30 @@
+.auth-screen {
+  min-height: 100vh; display: grid; grid-template-columns: 1.1fr 1fr;
+  background: var(--surface);
+}
+@media (max-width: 860px) { .auth-screen { grid-template-columns: 1fr; } }
+
+.auth-screen__aside {
+  background: var(--ink); color: #fff; display: flex; align-items: center; padding: 48px;
+}
+@media (max-width: 860px) { .auth-screen__aside { display: none; } }
+.auth-screen__aside-inner { max-width: 380px; }
+.auth-screen__eyebrow-free { color: #9FB0D6; font-size: 0.85rem; margin-bottom: 18px; }
+.auth-screen__headline { font-size: 2rem; line-height: 1.25; margin-bottom: 16px; }
+.auth-screen__copy { color: #C7CFE3; font-size: 0.95rem; line-height: 1.6; }
+
+.auth-card {
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 48px; max-width: 420px; margin: 0 auto; width: 100%;
+}
+.auth-card__brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+.auth-card__brand-mark {
+  width: 36px; height: 36px; border-radius: var(--radius-sm); background: var(--accent); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 600;
+}
+.auth-card__brand-name { font-weight: 700; font-size: 0.95rem; }
+.auth-card__brand-sub { font-size: 0.78rem; color: var(--text-muted); }
+.auth-card__title { font-size: 1.7rem; margin-bottom: 6px; }
+.auth-card__subtitle { color: var(--text-muted); margin-bottom: 24px; font-size: 0.9rem; }
+.auth-card__hint { margin-top: 18px; font-size: 0.78rem; color: var(--text-faint); text-align: center; }
+.auth-card__hint code { background: var(--canvas); padding: 2px 6px; border-radius: 4px; font-size: 0.76rem; }

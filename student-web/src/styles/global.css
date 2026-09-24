@@ -1,0 +1,104 @@
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--text);
+  background: var(--canvas);
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { font-family: var(--font-display); margin: 0; font-weight: 600; }
+p { margin: 0; }
+button, input, select, textarea { font-family: inherit; font-size: inherit; }
+button { cursor: pointer; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ---------- App shell ---------- */
+#app-root { min-height: 100vh; }
+.boot-loading { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--canvas); }
+
+.app-shell { display: flex; min-height: 100vh; }
+.main-column { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.main-content { flex: 1; padding: 28px 32px 48px; max-width: 1180px; width: 100%; margin: 0 auto; }
+.sidebar-overlay { display: none; }
+
+.page { display: flex; flex-direction: column; gap: 20px; }
+.page__head { display: flex; align-items: center; justify-content: space-between; }
+.page__title { font-size: 1.5rem; }
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  background: var(--ink);
+  color: #E9ECF5;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 14px;
+  gap: 8px;
+}
+.sidebar__brand { display: flex; align-items: center; gap: 10px; padding: 6px 10px 22px; }
+.sidebar__brand-mark {
+  width: 34px; height: 34px; border-radius: var(--radius-sm);
+  background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 600; font-size: 0.95rem;
+}
+.sidebar__brand-name { font-family: var(--font-display); font-size: 1.05rem; font-weight: 600; color: #fff; }
+.sidebar__nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.sidebar__link {
+  display: flex; align-items: center; gap: 12px;
+  background: none; border: none; color: #C4CADC;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  text-align: left; font-size: 0.92rem; transition: background 0.15s, color 0.15s;
+}
+.sidebar__link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.sidebar__link--active { background: var(--accent); color: #fff; }
+.sidebar__logout { margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px; }
+
+/* ---------- Topbar ---------- */
+.topbar {
+  height: var(--topbar-height); flex-shrink: 0;
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 24px; background: var(--surface); border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 5;
+}
+.topbar__menu { display: none; }
+.topbar__title { font-size: 1.1rem; }
+.topbar__spacer { flex: 1; }
+.topbar__identity { display: flex; align-items: center; gap: 10px; }
+.topbar__identity-text { display: flex; flex-direction: column; line-height: 1.25; }
+.topbar__name { font-size: 0.88rem; font-weight: 600; }
+.topbar__role { font-size: 0.76rem; color: var(--text-muted); }
+
+.avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--accent-100); color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 600; font-size: 0.85rem; flex-shrink: 0;
+}
+.avatar--large { width: 56px; height: 56px; font-size: 1.15rem; }
+
+.icon-button {
+  width: 34px; height: 34px; border-radius: var(--radius-sm);
+  border: 1px solid transparent; background: none; color: var(--text);
+  display: flex; align-items: center; justify-content: center;
+}
+.icon-button:hover { background: var(--canvas); }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .sidebar {
+    position: fixed; inset: 0 auto 0 0; z-index: 30;
+    transform: translateX(-100%); transition: transform 0.2s ease;
+  }
+  .app-shell--sidebar-open .sidebar { transform: translateX(0); }
+  .app-shell--sidebar-open .sidebar-overlay {
+    display: block; position: fixed; inset: 0; background: rgba(20,33,61,0.4); z-index: 25;
+  }
+  .topbar__menu { display: flex; }
+  .main-content { padding: 20px 16px 40px; }
+}
