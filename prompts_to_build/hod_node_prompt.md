@@ -456,3 +456,6 @@ After implementation, explain:
 5. API integration points
 6. What will need to change when the FastAPI backend is introduced
 7. Any assumptions made
+
+
+Do not make the UI dependent on mock data structures in a way that would require redesigning the UI when real API responses are introduced. Define data models/service interfaces first, then have both mock and future API implementations conform to those interfaces.
