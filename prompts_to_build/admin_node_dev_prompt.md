@@ -1201,3 +1201,6 @@ CLEAN SOFTWARE ARCHITECTURE
 CLEAR API BOUNDARY
 +
 EASY FUTURE INTEGRATION
+
+
+Do not make the UI dependent on mock data structures in a way that would require redesigning the UI when real API responses are introduced. Define data models/service interfaces first, then have both mock and future API implementations conform to those interfaces.

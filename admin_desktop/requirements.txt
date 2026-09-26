@@ -1,0 +1,21 @@
+# Smart Campus Admin Desktop — Stage 1
+#
+# No external dependencies are required. The application uses only the
+# Python standard library (tkinter, dataclasses, random, datetime).
+#
+# Requirements:
+#   Python 3.10+ (uses PEP 604 "X | None" type hints)
+#   Tkinter available in your Python install:
+#     - Windows/macOS official installers: bundled by default.
+#     - Debian/Ubuntu Linux: sudo apt-get install python3-tk
+#     - Fedora: sudo dnf install python3-tkinter
+#
+# Stage 2 (future backend integration) will add, in a separate
+# requirements file for the FastAPI backend project:
+#   fastapi
+#   uvicorn
+#   sqlalchemy
+#   psycopg2-binary
+#   pydantic
+#   python-jose[cryptography]   # JWT
+#   passlib[bcrypt]
