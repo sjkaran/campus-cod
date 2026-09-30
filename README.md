@@ -6,3 +6,7 @@
 
 ### Tasks
 > connect the backend apis to the node applications.
+
+
+### Journal
+> started the backend setup. - 30/09/2026 (sjkarn)
