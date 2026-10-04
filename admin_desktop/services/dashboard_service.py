@@ -1,16 +1,16 @@
 """
-Dashboard service.
+Dashboard service — Stage 2 (live backend).
 
-Stage 1: getDashboardData() -> mock aggregation of other mock modules.
-Stage 2: getDashboardData() -> ApiClient -> GET /api/admin/dashboard
+Composed from the lighter-weight endpoints (not full analytics) since the
+dashboard only needs headline numbers plus a handful of recent items:
+    GET /students, GET /analytics/attendance, GET /analytics/gatepasses,
+    GET /gatepasses, GET /notifications/admin
 """
 
 from dataclasses import dataclass
 
-from mock.students import get_all_students
-from mock.attendance import compute_summary
-from mock.gatepasses import get_all_gatepasses
-from mock.notifications import get_all_notifications
+from api.api_client import api_client, ApiClientError
+from services import student_service, gatepass_service, notification_service
 
 
 @dataclass
@@ -19,34 +19,54 @@ class DashboardData:
     active_students: int
     average_attendance: float
     pending_gatepasses: int
-    todays_attendance: float
+    low_attendance_students: int
     notifications_published: int
     recent_notifications: list
     recent_gatepasses: list
 
 
 def get_dashboard_data() -> DashboardData:
-    students = get_all_students()
-    active_students = [s for s in students if s.is_active]
-    summary = compute_summary()
-    gatepasses = get_all_gatepasses()
-    notifications = get_all_notifications()
+    try:
+        students_resp = api_client.get("/students", params={"page_size": 1})
+        total_students = (students_resp.get("pagination") or {}).get("total", 0)
+    except ApiClientError:
+        total_students = 0
+    try:
+        active_resp = api_client.get_all_pages("/students", page_size=200)
+        active_students = len([s for s in active_resp if s.get("status") == "ACTIVE"])
+    except ApiClientError:
+        active_students = 0
 
-    pending = [g for g in gatepasses if g.status == "PENDING"]
-    recent_gatepasses = sorted(gatepasses, key=lambda g: g.submitted_date, reverse=True)[:6]
-    recent_notifications = [n for n in notifications if n.status == "ACTIVE"][:5]
+    try:
+        overall = api_client.get_data("/analytics/attendance") or {}
+        average_attendance = overall.get("overall", {}).get("percentage", 0.0)
+        low_attendance_students = len(overall.get("low_attendance", []))
+    except ApiClientError:
+        average_attendance = 0.0
+        low_attendance_students = 0
 
-    # "Today's attendance" is simulated as a small variance around the
-    # overall percentage, representative of a daily snapshot vs. term average.
-    todays_attendance = round(min(100.0, max(0.0, summary.overall_percentage + 3.1)), 1)
+    try:
+        gp_stats = api_client.get_data("/analytics/gatepasses") or {}
+        pending_gatepasses = gp_stats.get("pending", 0)
+    except ApiClientError:
+        pending_gatepasses = 0
+
+    recent_gatepasses = gatepass_service.get_gatepasses()[:6]
+    recent_notifications = [n for n in notification_service.get_notifications() if n.status == "ACTIVE"][:5]
+
+    try:
+        notif_resp = api_client.get("/notifications/admin", params={"page_size": 1})
+        notifications_published = (notif_resp.get("pagination") or {}).get("total", 0)
+    except ApiClientError:
+        notifications_published = 0
 
     return DashboardData(
-        total_students=len(students),
-        active_students=len(active_students),
-        average_attendance=summary.overall_percentage,
-        pending_gatepasses=len(pending),
-        todays_attendance=todays_attendance,
-        notifications_published=len(notifications),
+        total_students=total_students,
+        active_students=active_students,
+        average_attendance=average_attendance,
+        pending_gatepasses=pending_gatepasses,
+        low_attendance_students=low_attendance_students,
+        notifications_published=notifications_published,
         recent_notifications=recent_notifications,
         recent_gatepasses=recent_gatepasses,
     )

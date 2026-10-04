@@ -6,8 +6,10 @@ environment-style settings so they are never hard-coded/scattered
 across UI modules.
 """
 
+import os
+
 APP_NAME = "Smart Campus Admin"
-APP_VERSION = "1.0.0-stage1"
+APP_VERSION = "2.0.0-stage2"
 
 # ---------------------------------------------------------------------------
 # Window
@@ -82,15 +84,11 @@ ATTENDANCE_CRITICAL_THRESHOLD = 65.0  # below this = "critically below threshold
 PAGE_SIZE = 25  # simulated pagination page size for large tables
 
 # ---------------------------------------------------------------------------
-# Stage 1 mock authentication (NEVER a real auth mechanism)
+# Stage 2 — live backend connection
 # ---------------------------------------------------------------------------
-MOCK_ADMIN_CREDENTIALS = {
-    "admin": "admin123",
-    "campus.admin": "campus@2026",
-}
-
-# ---------------------------------------------------------------------------
-# Future API configuration (unused in Stage 1, present for boundary clarity)
-# ---------------------------------------------------------------------------
-API_BASE_URL = "https://api.smartcampus.local"
+# Override by setting the ADMIN_API_BASE_URL environment variable before
+# launching the app, e.g. if the backend runs on another machine/port:
+#   (Windows PowerShell)  $env:ADMIN_API_BASE_URL = "http://192.168.1.20:8000/api"
+#   (macOS/Linux)         export ADMIN_API_BASE_URL="http://192.168.1.20:8000/api"
+API_BASE_URL = os.environ.get("ADMIN_API_BASE_URL", "http://localhost:8000/api")
 API_TIMEOUT_SECONDS = 10

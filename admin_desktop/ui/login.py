@@ -3,7 +3,7 @@
 import tkinter as tk
 from tkinter import ttk
 
-from config.settings import COLORS, FONTS, APP_NAME, MOCK_ADMIN_CREDENTIALS
+from config.settings import COLORS, FONTS, APP_NAME, API_BASE_URL
 from services.auth_service import authenticate_admin
 from utils.validators import validate_login_form
 
@@ -66,8 +66,7 @@ class LoginScreen(tk.Frame):
                                        bg=COLORS["surface"])
         self.status_label.pack(pady=(10, 0))
 
-        hint = ", ".join(f"{u} / {p}" for u, p in MOCK_ADMIN_CREDENTIALS.items())
-        tk.Label(card, text=f"Stage 1 demo credentials — {hint}", font=FONTS["small"],
+        tk.Label(card, text=f"Connecting to backend: {API_BASE_URL}", font=FONTS["small"],
                   fg=COLORS["text_subtle"], bg=COLORS["surface"], wraplength=320,
                   justify="center").pack(pady=(18, 0))
 

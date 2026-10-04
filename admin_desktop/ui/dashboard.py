@@ -58,7 +58,7 @@ class DashboardScreen(tk.Frame):
             row=0, column=1, sticky="nsew", padx=10, pady=4)
         KPICard(kpi_row1, "Pending Gate Passes", format_number(data.pending_gatepasses), "warning").grid(
             row=0, column=2, sticky="nsew", padx=10, pady=4)
-        KPICard(kpi_row1, "Today's Presence", format_percentage(data.todays_attendance), "info").grid(
+        KPICard(kpi_row1, "Low-Attendance Students", format_number(data.low_attendance_students), "info").grid(
             row=0, column=3, sticky="nsew", padx=(10, 0), pady=4)
 
         kpi_row2 = tk.Frame(scroll_holder, bg=COLORS["bg"])

@@ -14,6 +14,7 @@ from ui.theme import apply_theme
 from ui.login import LoginScreen
 from ui.sidebar import Sidebar
 from ui.components import confirm_dialog
+from services import auth_service
 
 from ui.dashboard import DashboardScreen
 from ui.students import StudentsScreen
@@ -98,6 +99,7 @@ class AdminApp:
             confirm_text="Log Out", danger=True,
         )
         if confirmed:
+            auth_service.logout()
             self.admin = None
             self._show_login()
 

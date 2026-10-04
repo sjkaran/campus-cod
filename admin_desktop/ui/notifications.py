@@ -102,10 +102,8 @@ class NotificationsScreen(tk.Frame):
             options = student_service.get_departments()
         elif code == "SEMESTER":
             options = [f"Semester {i}" for i in range(1, 9)]
-        elif code == "SECTION":
+        else:  # SECTION
             options = [f"Section {s}" for s in student_service.get_sections()]
-        else:
-            options = ["Final Year Placement Group", "Hostel Residents", "Scholarship Recipients"]
         self.detail_combo.configure(values=options)
         self.detail_var.set(options[0])
 
@@ -174,7 +172,7 @@ class NotificationsScreen(tk.Frame):
             filter_wrap,
             filters=[
                 ("priority", "Priority", ["All", "Normal", "Important", "Urgent"]),
-                ("status", "Status", ["All", "Active", "Expired", "Draft"]),
+                ("status", "Status", ["All", "Active", "Archived"]),
             ],
             on_change=lambda _v: self._refresh_history(),
         )

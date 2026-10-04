@@ -1,21 +1,20 @@
 """
-Report service.
+Report service — Stage 2 (live backend).
 
-Stage 1: generateReport() -> assembled in-memory from mock datasets.
-Stage 2: -> ApiClient -> GET /api/reports/students, /api/reports/attendance,
-                         /api/reports/gatepasses (etc.)
-
-A report is returned as a generic (columns, rows) structure so the Reports
-UI screen does not need to know the shape of any individual report type.
+Three report types export real server-generated CSV via ?format=csv:
+    GET /reports/students, GET /reports/attendance, GET /reports/gatepasses
+The other three (Department Attendance, Notification, System Summary) have
+no matching backend report endpoint, so they're composed client-side from
+other services and exported as CSV locally (csv/io, stdlib only).
 """
 
+import csv
+import io
 from dataclasses import dataclass
 
-from mock.students import get_all_students, DEPARTMENTS
-from mock.attendance import get_all_attendance, compute_summary
-from mock.gatepasses import get_all_gatepasses
-from mock.notifications import get_all_notifications
-from mock.analytics import get_overview
+from api.api_client import api_client, ApiClientError
+from services import student_service, attendance_service, notification_service, analytics_service
+from utils.helpers import now_str, today_str
 
 REPORT_TYPES = [
     "Student Report",
@@ -25,6 +24,12 @@ REPORT_TYPES = [
     "Notification Report",
     "System Summary Report",
 ]
+
+_SERVER_BACKED = {
+    "Student Report": "/reports/students",
+    "Attendance Report": "/reports/attendance",
+    "Gate-Pass Report": "/reports/gatepasses",
+}
 
 
 @dataclass
@@ -36,64 +41,44 @@ class ReportResult:
     row_count: int
 
 
-def _filter_common(items, department, semester, section, get_dept, get_sem=None, get_sec=None):
-    result = items
-    if department and department != "All":
-        result = [i for i in result if get_dept(i) == department]
-    if semester and semester != "All" and get_sem:
-        result = [i for i in result if str(get_sem(i)) == str(semester)]
-    if section and section != "All" and get_sec:
-        result = [i for i in result if get_sec(i) == section]
-    return result
+def _common_params(department, semester, section, date_from, date_to) -> dict:
+    return {
+        "department": student_service.code_for_department_name(department) if department != "All" else None,
+        "semester": int(semester) if semester != "All" else None,
+        "section": section if section != "All" else None,
+        "date_from": date_from or None,
+        "date_to": date_to or None,
+    }
 
 
 def generate_report(report_type: str, department: str = "All", semester: str = "All",
                      section: str = "All", date_from: str = "", date_to: str = "") -> ReportResult:
-    from utils.helpers import now_str
-
-    if report_type == "Student Report":
-        students = _filter_common(get_all_students(), department, semester, section,
-                                   get_dept=lambda s: s.department, get_sem=lambda s: s.semester,
-                                   get_sec=lambda s: s.section)
-        columns = ["Student ID", "Name", "Roll No.", "Department", "Sem", "Section", "Status"]
-        rows = [[s.student_id, s.name, s.roll_number, s.department, s.semester, s.section, s.status]
-                for s in students]
-
-    elif report_type == "Attendance Report":
-        records = _filter_common(get_all_attendance(), department, semester, section,
-                                  get_dept=lambda r: r.department, get_sem=lambda r: r.semester,
-                                  get_sec=lambda r: r.section)
-        columns = ["Student ID", "Name", "Subject", "Held", "Present", "Absent", "%"]
-        rows = [[r.student_id, r.student_name, r.subject, r.classes_held, r.present, r.absent,
-                 f"{r.percentage}%"] for r in records]
+    if report_type in _SERVER_BACKED:
+        path = _SERVER_BACKED[report_type]
+        params = _common_params(department, semester, section, date_from, date_to)
+        try:
+            rows = api_client.get_all_pages(path, params=params, page_size=500)
+        except ApiClientError:
+            rows = []
+        columns = list(rows[0].keys()) if rows else []
+        table_rows = [[r.get(c, "") for c in columns] for r in rows]
 
     elif report_type == "Department Attendance Report":
-        summary = compute_summary()
-        columns = ["Department", "Average Attendance"]
+        summary = attendance_service.get_attendance_summary()
         depts = [department] if department != "All" else list(summary.department_averages.keys())
-        rows = [[d, f"{summary.department_averages.get(d, 0.0)}%"] for d in depts]
-
-    elif report_type == "Gate-Pass Report":
-        records = _filter_common(get_all_gatepasses(), department, "All", "All",
-                                  get_dept=lambda g: g.department)
-        if date_from:
-            records = [g for g in records if g.submitted_date >= date_from]
-        if date_to:
-            records = [g for g in records if g.submitted_date <= date_to]
-        columns = ["Request ID", "Student", "Department", "Destination", "Status", "Submitted"]
-        rows = [[g.request_id, g.student_name, g.department, g.destination, g.status, g.submitted_date]
-                for g in records]
+        columns = ["Department", "Average Attendance"]
+        table_rows = [[d, f"{summary.department_averages.get(d, 0.0)}%"] for d in depts]
 
     elif report_type == "Notification Report":
-        notifications = get_all_notifications()
+        notifications = notification_service.get_notifications()
         columns = ["Notification ID", "Title", "Audience", "Priority", "Status", "Published"]
-        rows = [[n.notification_id, n.title, n.audience_detail, n.priority, n.status, n.published_date]
-                for n in notifications]
+        table_rows = [[n.notification_id, n.title, n.audience_detail, n.priority, n.status, n.published_date]
+                      for n in notifications]
 
     else:  # System Summary Report
-        overview = get_overview()
+        overview = analytics_service.get_analytics()
         columns = ["Metric", "Value"]
-        rows = [
+        table_rows = [
             ["Total Students", overview.total_students],
             ["Active Students", overview.active_students],
             ["Inactive Students", overview.inactive_students],
@@ -106,9 +91,25 @@ def generate_report(report_type: str, department: str = "All", semester: str = "
         ]
 
     return ReportResult(
-        title=report_type,
-        generated_on=now_str(),
-        columns=columns,
-        rows=rows,
-        row_count=len(rows),
+        title=report_type, generated_on=now_str(), columns=columns,
+        rows=table_rows, row_count=len(table_rows),
     )
+
+
+def export_report_csv(report_type: str, department: str = "All", semester: str = "All",
+                       section: str = "All", date_from: str = "", date_to: str = "") -> bytes:
+    """Returns CSV bytes ready to write to disk. Uses the backend's own CSV
+    export for the three report types it supports; builds CSV locally
+    (stdlib csv module) for the other three."""
+    if report_type in _SERVER_BACKED:
+        path = _SERVER_BACKED[report_type]
+        params = _common_params(department, semester, section, date_from, date_to)
+        params["format"] = "csv"
+        return api_client.get_raw(path, params=params)
+
+    result = generate_report(report_type, department, semester, section, date_from, date_to)
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(result.columns)
+    writer.writerows(result.rows)
+    return buffer.getvalue().encode("utf-8")

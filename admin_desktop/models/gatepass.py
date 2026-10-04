@@ -14,6 +14,7 @@ class GatePass:
     departure_date: str
     return_date: str
     submitted_date: str
-    status: str              # PENDING | APPROVED | REJECTED
+    status: str              # PENDING | APPROVED | REJECTED | CANCELLED
     reviewing_authority: str
     remarks: str = ""
+    pk: int = 0  # backend's internal integer id (Stage 2) — not shown in UI

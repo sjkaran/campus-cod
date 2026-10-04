@@ -1,10 +1,11 @@
 """Reports — parameterized report generation with preview and export (Stage 1 mock)."""
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
 
 from config.settings import COLORS, FONTS, PADDING
 from services import report_service, student_service
+from api.api_client import ApiClientError
 from ui.components import Card, DataTable, StatePlaceholder, info_dialog
 
 
@@ -101,8 +102,25 @@ class ReportsScreen(tk.Frame):
         if not self._last_result:
             info_dialog(self.app.root, "Nothing to Export", "Generate a report first, then export it.")
             return
-        info_dialog(
-            self.app.root, "Export Report",
-            f'"{self._last_result.title}" would be exported to CSV/PDF here once the backend '
-            f'report-generation endpoint (GET /api/reports/...) is connected in Stage 2.',
+
+        report_type = self.type_var.get()
+        default_name = report_type.lower().replace(" ", "_").replace("-", "_") + ".csv"
+        path = filedialog.asksaveasfilename(
+            parent=self.app.root, title="Export Report", defaultextension=".csv",
+            initialfile=default_name, filetypes=[("CSV file", "*.csv")],
         )
+        if not path:
+            return
+
+        try:
+            csv_bytes = report_service.export_report_csv(
+                report_type=report_type, department=self.dept_var.get(),
+                semester=self.sem_var.get(), section=self.section_var.get(),
+            )
+        except ApiClientError as e:
+            info_dialog(self.app.root, "Export Failed", str(e))
+            return
+
+        with open(path, "wb") as f:
+            f.write(csv_bytes)
+        info_dialog(self.app.root, "Export Complete", f"Report saved to:\n{path}")

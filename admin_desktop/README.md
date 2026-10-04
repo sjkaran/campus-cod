@@ -1,8 +1,66 @@
-# Smart Campus Management System — Admin Desktop Application (Stage 1)
+# Smart Campus Management System — Admin Desktop Application
 
-A standalone, polished Tkinter prototype for the College Administrator role,
-built with a clean service-layer architecture so mock data can be swapped
-for real FastAPI calls later without touching the UI.
+A polished Tkinter client for the College Administrator role, built with a
+clean service-layer architecture. **Stage 2 is complete: this app is now
+wired to the live FastAPI backend** (`campus-cod/backend`) instead of mock
+data — exactly per the plan laid out in Stage 1.
+
+## Stage 2 — What changed
+
+- `api/api_client.py` is now a real HTTP client (Python's stdlib `urllib`
+  only — no new dependency). It handles Bearer-token auth, the backend's
+  `{"data": ...}` / `{"data": [...], "pagination": {...}}` envelopes, and
+  pagination (`get_all_pages()`), clamped to the backend's page_size limit
+  of 100.
+- Every file in `services/` now calls the real backend instead of `mock/`.
+  The `mock/` folder is left in place but unused — nothing imports it
+  anymore.
+- `config/settings.py::API_BASE_URL` defaults to `http://localhost:8000/api`.
+  Override it with the `ADMIN_API_BASE_URL` environment variable if your
+  backend runs elsewhere:
+  ```powershell
+  $env:ADMIN_API_BASE_URL = "http://192.168.1.20:8000/api"
+  ```
+- Login now authenticates against `POST /auth/login` for real, and rejects
+  any non-ADMIN-role account with a clear message (role enforcement still
+  belongs to the backend — this is a UX convenience, not a security
+  boundary).
+- Reports' Export button now writes a **real CSV file** to disk (via a
+  native Save-As dialog), using the backend's own `?format=csv` support for
+  Student/Attendance/Gate-Pass reports, and a stdlib-generated CSV for the
+  other three report types.
+
+### A bug found and fixed in the backend along the way
+
+While validating this integration against a live instance of the backend,
+`app/repositories/student_repository.py` failed to import: it defines a
+method named `list`, which shadows Python's builtin `list` for the rest of
+that class body, crashing the `-> list[Student]` return-type annotation on
+the very next method with `TypeError: 'function' object is not
+subscriptable`. Fixed by adding `from __future__ import annotations` as
+the file's first line (defers annotation evaluation, sidestepping the
+shadowing entirely). Confirmed `pytest` still passes 75/75 afterward.
+**Apply this same one-line fix to your local backend checkout** if you
+haven't already.
+
+### Known Stage 2 limitations
+
+- A couple of backend data points don't exist yet, so the UI approximates
+  them client-side: notification audience *history* only shows the
+  audience type (not the specific department/semester/section) since the
+  list endpoint doesn't return it; notification recipient counts are
+  estimated from `/students` at publish time, not stored; semester-level
+  attendance breakdown on the Analytics screen is computed from the same
+  bulk attendance report the Attendance screen uses, since there's no
+  dedicated endpoint for it.
+- Per-request errors after login (e.g. a transient network blip while
+  filtering) currently degrade to an empty list/table rather than showing
+  a dedicated error banner — a reasonable first pass, worth hardening with
+  a shared error-surfacing pattern later.
+- The backend's notification audience model has 4 types (All Students,
+  Department, Semester, Section) — the Stage 1 mock's placeholder 5th
+  option ("Specific Group") has been removed since the backend has no
+  named-group concept.
 
 ---
 
@@ -99,12 +157,12 @@ cd admin_desktop
 python3 main.py
 ```
 
-### Mock Admin credentials (Stage 1 only — not real authentication)
+### Logging in
 
-| Username       | Password     |
-|----------------|--------------|
-| `admin`        | `admin123`   |
-| `campus.admin` | `campus@2026`|
+Use the seeded ADMIN-role credentials from the backend's `app/seed.py`
+(run `python -m app.seed` in the backend once — see its own README/setup
+guide). Any account seeded with a role other than ADMIN will be rejected
+by this app with a clear message, even if the password is correct.
 
 ---
 
@@ -159,9 +217,14 @@ actions (publish notification, logout) use a confirmation dialog.
 
 ---
 
-## 5. Mock-Data Architecture
+## 5. Mock-Data Architecture (Stage 1 — now unused, kept for reference)
 
-All simulated data lives exclusively under `mock/`:
+`services/` no longer imports anything from `mock/` — every service calls
+the live backend instead (Section "Stage 2" above). The folder is left in
+place only as a historical reference for the data shapes Stage 1 used; it
+is safe to delete.
+
+All simulated data used to live exclusively under `mock/`:
 
 - `mock/students.py` — generates 240 realistic student records (Indian
   names, 5 departments, semesters 1–8, sections A–C, ~92% ACTIVE).

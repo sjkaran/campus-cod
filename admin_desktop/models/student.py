@@ -15,6 +15,7 @@ class Student:
     status: str  # "ACTIVE" | "INACTIVE"
     phone: str = ""
     admission_year: int = 0
+    pk: int = 0  # backend's internal integer id (Stage 2) — not shown in UI
 
     @property
     def is_active(self) -> bool:
