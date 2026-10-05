@@ -1,9 +1,11 @@
 import { h } from '../utils/dom.js';
 import { icon } from '../utils/icons.js';
-import { getGatePassDetails } from '../services/gatePassService.js';
+import { getGatePassDetails, cancelGatePass } from '../services/gatePassService.js';
 import { formatDate, formatDateTime } from '../utils/formatting.js';
 import { StatusBadge } from '../components/StatusBadge.js';
 import { LoadingState, ErrorState } from '../components/DataState.js';
+import { openModal } from '../components/Modal.js';
+import { showToast } from '../components/Toast.js';
 
 /**
  * @param {string} id
@@ -24,13 +26,38 @@ export function GatePassDetailsPage(id, student, onBack) {
       ? [{ label: 'Submitted', done: true }, { label: 'Under Review', done: true }, { label: 'Rejected', done: true, bad: true }]
       : status === 'APPROVED'
         ? [{ label: 'Submitted', done: true }, { label: 'Under Review', done: true }, { label: 'Approved', done: true }]
-        : [{ label: 'Submitted', done: true }, { label: 'Under Review', done: true, current: true }, { label: 'Decision', done: false }];
+        : status === 'CANCELLED'
+          ? [{ label: 'Submitted', done: true }, { label: 'Cancelled', done: true, bad: true }]
+          : [{ label: 'Submitted', done: true }, { label: 'Under Review', done: true, current: true }, { label: 'Decision', done: false }];
 
     return h('div', { class: 'timeline' }, steps.map((s, idx) => h('div', { class: `timeline__step ${s.done ? 'timeline__step--done' : ''} ${s.bad ? 'timeline__step--bad' : ''} ${s.current ? 'timeline__step--current' : ''}` }, [
       h('span', { class: 'timeline__dot' }),
       h('span', { class: 'timeline__label' }, s.label),
       idx < steps.length - 1 ? h('span', { class: 'timeline__connector' }) : null,
     ])));
+  }
+
+  function handleCancel(gp) {
+    openModal({
+      title: 'Cancel gate pass',
+      body: 'Are you sure you want to cancel this gate-pass request? This cannot be undone.',
+      actions: [
+        { label: 'Keep it', variant: 'secondary', onClick: (close) => close() },
+        {
+          label: 'Cancel Request', variant: 'primary',
+          onClick: async (close) => {
+            close();
+            try {
+              await cancelGatePass(gp.id);
+              showToast('Gate-pass request cancelled.', 'success');
+              load();
+            } catch (err) {
+              showToast(err.message || 'Unable to cancel this request.', 'error');
+            }
+          },
+        },
+      ],
+    });
   }
 
   async function load() {
@@ -42,7 +69,12 @@ export function GatePassDetailsPage(id, student, onBack) {
             h('span', { class: 'gatepass-card__id' }, gp.id),
             h('h3', { class: 'panel__title' }, gp.destination),
           ]),
-          StatusBadge(gp.status, gp.status),
+          h('div', {}, [
+            StatusBadge(gp.status, gp.status),
+            gp.status === 'PENDING'
+              ? h('button', { class: 'btn btn--ghost btn--small', style: 'margin-left:8px', onClick: () => handleCancel(gp) }, 'Cancel Request')
+              : null,
+          ]),
         ]),
         timeline(gp.status),
         h('div', { class: 'details-grid' }, [

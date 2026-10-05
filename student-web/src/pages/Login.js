@@ -2,7 +2,7 @@ import { h } from '../utils/dom.js';
 import { icon } from '../utils/icons.js';
 import { loginStudent } from '../services/authService.js';
 import { validateLoginForm } from '../utils/validation.js';
-import { MOCK_CREDENTIALS } from '../mock/students.js';
+import { API_BASE_URL } from '../utils/constants.js';
 
 /**
  * @param {(session:Object)=>void} onLoginSuccess
@@ -32,7 +32,7 @@ export function LoginPage(onLoginSuccess) {
         h('label', { for: 'username', class: 'field-label' }, 'Student ID'),
         h('input', {
           id: 'username', class: `field-input ${state.errors.username ? 'field-input--error' : ''}`,
-          type: 'text', placeholder: 'e.g. STU-2026-001', value: state.username, autocomplete: 'username',
+          type: 'text', placeholder: 'e.g. S2026001', value: state.username, autocomplete: 'username',
           onInput: (e) => { state.username = e.target.value; },
         }),
         state.errors.username ? h('span', { class: 'field-error' }, state.errors.username) : null,
@@ -59,12 +59,7 @@ export function LoginPage(onLoginSuccess) {
         state.loading ? 'Signing in…' : 'Sign in',
       ]),
 
-      h('p', { class: 'auth-card__hint' }, [
-        'Demo credentials — Student ID: ',
-        h('code', {}, MOCK_CREDENTIALS.username),
-        ', Password: ',
-        h('code', {}, MOCK_CREDENTIALS.password),
-      ]),
+      h('p', { class: 'auth-card__hint' }, `Connecting to backend: ${(typeof window !== 'undefined' && window.SMART_CAMPUS_API_BASE_URL) || API_BASE_URL}`),
     ]);
 
     root.replaceChildren(

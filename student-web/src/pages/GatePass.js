@@ -10,7 +10,9 @@ import { formatDate } from '../utils/formatting.js';
 
 /** @param {(id:string)=>void} onOpenDetails */
 export function GatePassPage(onOpenDetails) {
-  const form = { destination: '', reason: '', remarks: '', departureDate: '', departureTime: '', returnDate: '', returnTime: '' };
+  // Note: no "remarks" field — the backend's GatePassCreate schema doesn't
+  // have one and rejects unrecognized fields outright.
+  const form = { destination: '', reason: '', departureDate: '', departureTime: '', returnDate: '', returnTime: '' };
   let errors = {};
   let submitting = false;
   const historyState = { items: [], status: 'loading' };
@@ -66,7 +68,6 @@ export function GatePassPage(onOpenDetails) {
         field('returnDate', 'Expected return date', { type: 'date', half: true }),
         field('returnTime', 'Expected return time', { type: 'time', half: true }),
       ]),
-      field('remarks', 'Additional remarks (optional)', { textarea: true, placeholder: 'Anything else the reviewer should know' }),
       h('button', { class: 'btn btn--primary btn--block', type: 'submit', disabled: submitting }, [
         submitting ? h('span', { class: 'spinner spinner--small' }) : icon('plus', { size: 16 }),
         submitting ? 'Submitting…' : 'Submit Gate Pass Request',
@@ -107,8 +108,8 @@ export function GatePassPage(onOpenDetails) {
       Object.keys(form).forEach((k) => { form[k] = ''; });
       errors = {};
       loadHistory();
-    } catch {
-      showToast('Unable to submit gate pass. Please try again.', 'error');
+    } catch (err) {
+      showToast(err.message || 'Unable to submit gate pass. Please try again.', 'error');
     } finally {
       submitting = false;
       renderForm();

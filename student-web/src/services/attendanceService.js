@@ -1,51 +1,42 @@
-// ===== Attendance service =====
-// Stage 1: mock/attendance.js
-// Stage 2:
-//   getAttendanceSummary()  -> GET /api/students/me/attendance
-//   getSubjectAttendance()  -> GET /api/students/me/attendance/subjects
-//   getAttendanceHistory()  -> GET /api/students/me/attendance/history
+// ===== Attendance service (Stage 2 — live backend) =====
+//   getAttendanceSummary()  -> GET /students/me/attendance (overall)
+//   getSubjectAttendance()  -> GET /students/me/attendance (subjects)
+//   getAttendanceHistory()  -> NOT YET AVAILABLE server-side. The backend
+//     only exposes per-session attendance detail to FACULTY/HOD/ADMIN
+//     (GET /attendance/sessions/{id}), not to the student who was marked.
+//     This always resolves to [] until that endpoint exists — the
+//     Attendance page shows an explanatory note rather than faking records.
 
-import { MOCK_SUBJECT_ATTENDANCE, MOCK_ATTENDANCE_HISTORY } from '../mock/attendance.js';
+import { getData } from '../api/apiClient.js';
 import { APP_CONFIG } from '../utils/constants.js';
 
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export async function getAttendanceSummary() {
-  await delay(350);
-  // ----- FUTURE API INTEGRATION -----
-  // return apiClient.get('/students/me/attendance');
-  const totalClasses = MOCK_SUBJECT_ATTENDANCE.reduce((sum, s) => sum + s.totalClasses, 0);
-  const present = MOCK_SUBJECT_ATTENDANCE.reduce((sum, s) => sum + s.present, 0);
-  const absent = totalClasses - present;
-  const percentage = totalClasses ? Number(((present / totalClasses) * 100).toFixed(1)) : 0;
-  return { totalClasses, present, absent, percentage, threshold: APP_CONFIG.ATTENDANCE_WARNING_THRESHOLD };
+  const data = await getData('/students/me/attendance');
+  const overall = data.overall;
+  return {
+    totalClasses: overall.total_classes,
+    present: overall.present,
+    absent: overall.absent,
+    percentage: overall.percentage,
+    threshold: APP_CONFIG.ATTENDANCE_WARNING_THRESHOLD,
+  };
 }
 
 export async function getSubjectAttendance() {
-  await delay(400);
-  // ----- FUTURE API INTEGRATION -----
-  // return apiClient.get('/students/me/attendance/subjects');
-  return [...MOCK_SUBJECT_ATTENDANCE];
+  const data = await getData('/students/me/attendance');
+  return data.subjects.map((s) => ({
+    subject: s.subject_name,
+    totalClasses: s.total_classes,
+    present: s.present,
+    absent: s.absent,
+    percentage: s.percentage,
+  }));
 }
 
-/**
- * @param {Object} filters
- * @param {string} [filters.subject]
- * @param {string} [filters.status]
- * @param {string} [filters.fromDate]
- * @param {string} [filters.toDate]
- */
-export async function getAttendanceHistory(filters = {}) {
-  await delay(400);
-  // ----- FUTURE API INTEGRATION -----
-  // return apiClient.get('/students/me/attendance/history', { params: filters });
-  return MOCK_ATTENDANCE_HISTORY.filter((record) => {
-    if (filters.subject && filters.subject !== 'all' && record.subject !== filters.subject) return false;
-    if (filters.status && filters.status !== 'all' && record.status !== filters.status) return false;
-    if (filters.fromDate && record.date < filters.fromDate) return false;
-    if (filters.toDate && record.date > filters.toDate) return false;
-    return true;
-  });
+export async function getAttendanceHistory(_filters = {}) {
+  return [];
 }
+
+export const ATTENDANCE_HISTORY_UNAVAILABLE =
+  'Day-by-day attendance history isn\u2019t available from the backend yet — only the subject-wise totals above are. ' +
+  'This will populate automatically once a student-facing session history endpoint is added.';

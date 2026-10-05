@@ -45,3 +45,9 @@ export const APP_CONFIG = {
 };
 
 export const SESSION_KEY = 'sc_student_session';
+
+// Stage 2 — the live backend. Override without editing source by setting
+// window.SMART_CAMPUS_API_BASE_URL in index.html before app.js loads,
+// e.g. if the backend runs on another machine:
+//   <script>window.SMART_CAMPUS_API_BASE_URL = 'http://192.168.1.20:8000/api';</script>
+export const API_BASE_URL = 'http://localhost:8000/api';

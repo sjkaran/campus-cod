@@ -1,16 +1,35 @@
-// ===== Student service =====
-// Stage 1: getCurrentStudent() -> mock/students.js
-// Stage 2: getCurrentStudent() -> apiClient.get('/students/me')
+// ===== Student service (Stage 2 — live backend) =====
+// getCurrentStudent() -> GET /students/me, department name resolved via
+// GET /departments (cached — small, stable reference data).
 
-import { MOCK_STUDENT } from '../mock/students.js';
+import { getData } from '../api/apiClient.js';
 
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+let departmentsCache = null;
+
+async function loadDepartments() {
+  if (!departmentsCache) {
+    departmentsCache = (await getData('/departments')) || [];
+  }
+  return departmentsCache;
+}
+
+async function nameForDepartmentCode(code) {
+  const departments = await loadDepartments();
+  const match = departments.find((d) => d.code === code);
+  return match ? match.name : code || '—';
 }
 
 export async function getCurrentStudent() {
-  await delay(350);
-  // ----- FUTURE API INTEGRATION -----
-  // return apiClient.get('/students/me');
-  return { ...MOCK_STUDENT };
+  const row = await getData('/students/me');
+  return {
+    id: row.student_id,
+    name: row.name,
+    rollNumber: row.roll_number,
+    department: await nameForDepartmentCode(row.department_code),
+    semester: row.semester,
+    section: row.section,
+    email: row.email,
+    phone: row.phone || '',
+    admissionYear: '', // not modeled by the backend yet
+  };
 }

@@ -1,69 +1,79 @@
-// ===== Gate pass service =====
-// Stage 1: mock/gatePasses.js (mutable in-memory list)
-// Stage 2:
-//   submitGatePass()   -> POST /api/gatepasses
-//   getMyGatePasses()  -> GET /api/gatepasses/my
-//   getGatePassDetails() -> GET /api/gatepasses/{id}
+// ===== Gate pass service (Stage 2 — live backend) =====
+//   submitGatePass()     -> POST /gatepasses
+//   getMyGatePasses()    -> GET /gatepasses/my
+//   getGatePassDetails() -> GET /gatepasses/{id}
+//   cancelGatePass()     -> PATCH /gatepasses/{id}/cancel
+//
+// Note: the backend's GatePassCreate schema has no "remarks" field and
+// rejects unknown fields outright (extra="forbid"), so the Stage 1 mock
+// form's optional remarks box was removed from pages/GatePass.js.
 
-import { MOCK_GATE_PASSES, generateGatePassId } from '../mock/gatePasses.js';
-import { GATE_PASS_STATUS } from '../utils/constants.js';
+import { apiClient, getAllPages, getData } from '../api/apiClient.js';
 
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function toGatePass(row) {
+  return {
+    id: `GP${String(row.id).padStart(4, '0')}`,
+    destination: row.destination,
+    reason: row.reason,
+    remarks: '',
+    departureDate: row.departure_date,
+    departureTime: row.departure_time,
+    returnDate: row.return_date,
+    returnTime: row.return_time,
+    submittedAt: row.created_at,
+    status: row.status,
+    reviewedBy: row.hod_name,
+    reviewRemarks: row.hod_remarks,
+    reviewedAt: row.reviewed_at,
+  };
+}
+
+function idToPk(id) {
+  return parseInt(String(id).replace(/^GP/i, ''), 10);
 }
 
 export async function getMyGatePasses() {
-  await delay(400);
-  // ----- FUTURE API INTEGRATION -----
-  // return apiClient.get('/gatepasses/my');
-  return [...MOCK_GATE_PASSES].sort((a, b) => (a.submittedAt < b.submittedAt ? 1 : -1));
+  const rows = await getAllPages('/gatepasses/my');
+  return rows.map(toGatePass).sort((a, b) => (a.submittedAt < b.submittedAt ? 1 : -1));
 }
 
 export async function getGatePassDetails(id) {
-  await delay(300);
-  // ----- FUTURE API INTEGRATION -----
-  // return apiClient.get(`/gatepasses/${id}`);
-  const found = MOCK_GATE_PASSES.find((gp) => gp.id === id);
-  if (!found) {
+  const pk = idToPk(id);
+  const row = await getData(`/gatepasses/${pk}`);
+  if (!row) {
     const error = new Error('Gate pass not found.');
     error.code = 'NOT_FOUND';
     throw error;
   }
-  return { ...found };
+  return toGatePass(row);
 }
 
 /**
- * @param {Object} data
- * @returns {Promise<Object>} the created gate pass
+ * @param {Object} data { destination, reason, departureDate, departureTime, returnDate, returnTime }
  */
 export async function submitGatePass(data) {
-  await delay(600);
-  // ----- FUTURE API INTEGRATION -----
-  // return apiClient.post('/gatepasses', data);
-  const record = {
-    id: generateGatePassId(),
+  const resp = await apiClient.post('/gatepasses', {
     destination: data.destination.trim(),
     reason: data.reason.trim(),
-    remarks: (data.remarks || '').trim(),
-    departureDate: data.departureDate,
-    departureTime: data.departureTime,
-    returnDate: data.returnDate,
-    returnTime: data.returnTime,
-    submittedAt: new Date().toISOString(),
-    status: GATE_PASS_STATUS.PENDING,
-    reviewedBy: null,
-    reviewRemarks: null,
-    reviewedAt: null,
-  };
-  MOCK_GATE_PASSES.unshift(record);
-  return { ...record };
+    departure_date: data.departureDate,
+    departure_time: data.departureTime,
+    return_date: data.returnDate,
+    return_time: data.returnTime,
+  });
+  return toGatePass(resp.data);
+}
+
+export async function cancelGatePass(id) {
+  const pk = idToPk(id);
+  const resp = await apiClient.patch(`/gatepasses/${pk}/cancel`);
+  return toGatePass(resp.data);
 }
 
 export async function getGatePassSummaryCounts() {
   const all = await getMyGatePasses();
   return {
-    pending: all.filter((g) => g.status === GATE_PASS_STATUS.PENDING).length,
-    approved: all.filter((g) => g.status === GATE_PASS_STATUS.APPROVED).length,
-    rejected: all.filter((g) => g.status === GATE_PASS_STATUS.REJECTED).length,
+    pending: all.filter((g) => g.status === 'PENDING').length,
+    approved: all.filter((g) => g.status === 'APPROVED').length,
+    rejected: all.filter((g) => g.status === 'REJECTED').length,
   };
 }

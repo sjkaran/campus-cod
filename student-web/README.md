@@ -1,8 +1,60 @@
-# Smart Campus — Student Web Application (Stage 1 Prototype)
+# Smart Campus — Student Web Application
 
-A standalone, front-end-only prototype of the Student node of the Smart
-Campus Management System. Built with plain HTML/CSS/JavaScript (ES
-modules, no framework, no build step) per the master and node prompts.
+A front-end-only client (plain HTML/CSS/JavaScript, ES modules, no build
+step) for the Student node of the Smart Campus Management System.
+**Stage 2 is complete: this app is now wired to the live FastAPI backend**
+instead of mock data.
+
+## Stage 2 — What changed
+
+- `src/api/apiClient.js` is now a real `fetch()`-based client. Handles
+  Bearer-token auth and the backend's `{"data": ...}` /
+  `{"data": [...], "pagination": {...}}` envelopes, with `getAllPages()`
+  clamped to the backend's page_size limit of 100.
+- Every file in `src/services/` now calls the real backend. `src/mock/` is
+  left in place but unused — nothing imports it anymore.
+- Backend URL defaults to `http://localhost:8000/api`
+  (`src/utils/constants.js::API_BASE_URL`). Override without editing
+  source by adding before the `app.js` script tag in `index.html`:
+  ```html
+  <script>window.SMART_CAMPUS_API_BASE_URL = 'http://192.168.1.20:8000/api';</script>
+  ```
+- **Add the dev server's origin to your backend's CORS allow-list** — this
+  app is served from `http://localhost:5173`, which isn't in the
+  `.env.example` default. Add it to `CORS_ORIGINS` in your backend's
+  `.env`:
+  ```
+  CORS_ORIGINS=http://localhost:5500,http://127.0.0.1:5500,http://localhost:3000,http://localhost:8080,http://localhost:5173,http://127.0.0.1:5173
+  ```
+  then restart `uvicorn`.
+- Login now authenticates against `POST /auth/login` for real, and rejects
+  any non-STUDENT-role account.
+- The gate-pass form's "remarks" field was **removed** — the backend's
+  `GatePassCreate` schema has no such field and rejects unrecognized
+  fields outright (422).
+- The Gate Pass Details page now has a real **Cancel Request** button for
+  PENDING requests, using the backend's `PATCH /gatepasses/{id}/cancel`.
+- Notification priority (backend: `NORMAL`/`IMPORTANT`/`URGENT`) maps to
+  the UI's two-tier badge system: `IMPORTANT` and `URGENT` both show as
+  "High priority"; `NORMAL` shows as normal.
+
+### Known Stage 2 limitation
+
+The backend has **no endpoint for a student's day-by-day attendance
+history** — `GET /students/me/attendance` only returns overall + per-subject
+totals, and the one endpoint with per-session detail
+(`GET /attendance/sessions/{id}`) is restricted to FACULTY/HOD/ADMIN, not
+the student who was marked. Rather than fabricate history data, the
+Attendance page now shows an explanatory note and an empty history table.
+Summary and subject-wise attendance are fully real.
+
+### Verified against a live backend
+
+Every service function (login, profile, attendance summary/subjects, gate
+pass submit/list/detail/cancel, notification list/mark-read) was run
+against a real running instance of this backend — including confirming
+that a notification published from the **Admin** app actually appears
+here for the targeted student, and marking it read persists server-side.
 
 ## 1. Architecture
 
@@ -66,14 +118,12 @@ npm run serve       # runs: python3 -m http.server 5173
 
 Then open **http://localhost:5173**.
 
-## 3. Mock credentials
+## 3. Logging in
 
-```
-Student ID: STU-2026-001
-Password:   campus123
-```
-
-(Also shown on the login screen itself for convenience.)
+Use a seeded STUDENT-role account from the backend's `app/seed.py`, e.g.
+`s2026001` / `Student@12345` (run `python -m app.seed` in the backend once
+if you haven't). Any account seeded with a different role is rejected with
+a clear message.
 
 ## 4. Implemented screens
 

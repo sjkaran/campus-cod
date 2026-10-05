@@ -1,6 +1,6 @@
 import { h } from '../utils/dom.js';
 import { icon } from '../utils/icons.js';
-import { getAttendanceSummary, getSubjectAttendance, getAttendanceHistory } from '../services/attendanceService.js';
+import { getAttendanceSummary, getSubjectAttendance, getAttendanceHistory, ATTENDANCE_HISTORY_UNAVAILABLE } from '../services/attendanceService.js';
 import { StatCard } from '../components/StatCard.js';
 import { SubjectAttendanceTable, AttendanceHistoryTable } from '../components/AttendanceTable.js';
 import { LoadingState, ErrorState, EmptyState } from '../components/DataState.js';
@@ -25,6 +25,7 @@ export function AttendancePage() {
     subjectsSlot,
     h('div', { class: 'panel' }, [
       h('div', { class: 'panel__head' }, h('h3', { class: 'panel__title' }, 'Attendance History')),
+      h('p', { class: 'alert alert--warning' }, [icon('warning', { size: 16 }), ATTENDANCE_HISTORY_UNAVAILABLE]),
       buildFilters(),
       historySlot,
     ]),

@@ -1,56 +1,47 @@
-// ===== Auth service =====
+// ===== Auth service (Stage 2 — live backend) =====
 // UI calls loginStudent()/logoutStudent()/getSession() only. Nothing else
-// in the app knows whether it's talking to mock data or a real API.
-//
-// Stage 1:  loginStudent() -> MockAuthService
-// Stage 2:  loginStudent() -> ApiAuthService -> POST /api/auth/login
+// in the app knows whether it's talking to mock data or the real API.
 
-import { MOCK_CREDENTIALS } from '../mock/students.js';
+import { apiClient, setAuthToken, clearAuthToken } from '../api/apiClient.js';
 import { SESSION_KEY } from '../utils/constants.js';
 
-const ARTIFICIAL_DELAY_MS = 500;
-
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Attempts to authenticate a student.
- * @returns {Promise<{ token: string }>}
- */
 export async function loginStudent(username, password) {
-  await delay(ARTIFICIAL_DELAY_MS);
+  const response = await apiClient.post('/auth/login', {
+    username: username.trim(),
+    password,
+  });
+  // response: { access_token, token_type, expires_in, user: { id, username, role, name, department_code } }
 
-  // ----- FUTURE API INTEGRATION -----
-  // Replace this mock check with:
-  //   const { token } = await apiClient.post('/auth/login', { username, password });
-  const valid = username.trim() === MOCK_CREDENTIALS.username
-    && password === MOCK_CREDENTIALS.password;
-
-  if (!valid) {
-    const error = new Error('Invalid Student ID or password.');
-    error.code = 'INVALID_CREDENTIALS';
+  if (response.user.role !== 'STUDENT') {
+    const error = new Error(
+      `This portal is for Student accounts only. That login has the ${response.user.role} role.`,
+    );
+    error.code = 'WRONG_ROLE';
     throw error;
   }
 
   const session = {
-    token: `mock-token.${btoa(username)}.${Date.now()}`,
-    username,
+    token: response.access_token,
+    username: response.user.username,
     issuedAt: new Date().toISOString(),
   };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  setAuthToken(session.token);
   return session;
 }
 
 export function logoutStudent() {
   sessionStorage.removeItem(SESSION_KEY);
+  clearAuthToken();
 }
 
 export function getSession() {
   const raw = sessionStorage.getItem(SESSION_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw);
+    const session = JSON.parse(raw);
+    setAuthToken(session.token); // re-attach token for this page load
+    return session;
   } catch {
     return null;
   }
