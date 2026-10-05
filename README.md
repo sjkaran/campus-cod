@@ -10,3 +10,4 @@
 
 ### Journal
 > started the backend setup. - 30/09/2026 (sjkarn)
+> Need to identify the way to deploy the backend for remote access from all the nodes - 05/10/2026 (SalmonSusikid)
