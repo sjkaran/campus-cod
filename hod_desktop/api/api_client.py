@@ -1,84 +1,193 @@
 """
-Future REST API client for the Smart Campus backend.
+API CLIENT — Stage 2 (live backend)
+====================================
+Single centralized place that owns all HTTP communication with the FastAPI
+backend. No other module should construct a URL or open a socket — the
+service layer (see services/) is the only thing that calls into this file.
 
-Stage 1: this module is a stub. Nothing in the UI calls it yet — all
-data flows through mock/mock_data.py via the services layer.
+Built on Python's standard library (urllib), no third-party dependencies.
 
-Stage 2: this becomes the real HTTP client (requests/httpx) that the
-services layer switches to once config.settings.DATA_SOURCE_MODE is
-set to "api". Every method signature here mirrors a documented
-endpoint so that swapping MockService -> ApiService in services/*.py
-is a drop-in replacement with no UI changes required.
+Backend conventions this client understands:
+  * Auth:          Authorization: Bearer <token>, obtained from POST /auth/login
+  * Single item:   {"data": {...}}
+  * Collection:    {"data": [...], "pagination": {"page","page_size","total"}}
+  * Error:         {"detail": "..."}  with a non-2xx HTTP status
 """
+
+import json
+import urllib.request
+import urllib.parse
+import urllib.error
 
 from config.settings import API_BASE_URL
 
+API_TIMEOUT_SECONDS = 10
+
+
+class ApiClientError(Exception):
+    """Raised for any failed API call. `status_code` is None for network-level
+    failures (backend unreachable), or the HTTP status code otherwise."""
+
+    def __init__(self, message: str, status_code: int | None = None):
+        super().__init__(message)
+        self.status_code = status_code
+
 
 class ApiClient:
-    """
-    Thin HTTP wrapper around the future FastAPI backend.
+    def __init__(self, base_url: str = API_BASE_URL, timeout: int = API_TIMEOUT_SECONDS):
+        self.base_url = base_url.rstrip("/")
+        self.timeout = timeout
+        self._auth_token: str | None = None
 
-    Each method below corresponds to a documented endpoint (see the
-    "Future API" comments in the relevant services/*.py file). None of
-    these are implemented yet — calling any of them raises
-    NotImplementedError so that accidental Stage-1 usage fails loudly
-    instead of silently doing nothing.
-    """
+    def set_auth_token(self, token: str) -> None:
+        self._auth_token = token
 
-    def __init__(self, base_url: str = API_BASE_URL, token: str | None = None):
-        self.base_url = base_url
-        self.token = token  # JWT, attached as an Authorization header in Stage 2
+    def clear_auth_token(self) -> None:
+        self._auth_token = None
 
-    # ---- Auth ----------------------------------------------------
-    def login(self, hod_id: str, password: str):
-        # POST /api/auth/login
-        raise NotImplementedError("Stage 2: implement HTTP call to /api/auth/login")
+    def _headers(self) -> dict:
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        if self._auth_token:
+            headers["Authorization"] = f"Bearer {self._auth_token}"
+        return headers
 
-    # ---- Dashboard -------------------------------------------------
-    def get_dashboard_summary(self):
-        # GET /api/hod/dashboard
-        raise NotImplementedError
+    def _build_url(self, path: str, params: dict | None) -> str:
+        url = self.base_url + path
+        if params:
+            clean = {k: v for k, v in params.items() if v is not None and v != ""}
+            if clean:
+                url += "?" + urllib.parse.urlencode(clean)
+        return url
 
-    # ---- Gate passes ------------------------------------------------
-    def get_pending_gatepasses(self):
-        # GET /api/gatepasses/pending
-        raise NotImplementedError
+    def _request(self, method: str, path: str, params: dict = None, json_body: dict = None):
+        url = self._build_url(path, params)
+        data = json.dumps(json_body).encode("utf-8") if json_body is not None else None
+        request = urllib.request.Request(url, data=data, method=method, headers=self._headers())
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                body = response.read()
+                text = body.decode("utf-8")
+                return json.loads(text) if text else {}
+        except urllib.error.HTTPError as e:
+            body_text = e.read().decode("utf-8", errors="replace")
+            try:
+                detail = json.loads(body_text).get("detail", body_text)
+            except (json.JSONDecodeError, AttributeError):
+                detail = body_text or e.reason
+            raise ApiClientError(str(detail), status_code=e.code) from e
+        except urllib.error.URLError as e:
+            raise ApiClientError(
+                f"Cannot reach the backend at {self.base_url}. Is it running? ({e.reason})"
+            ) from e
 
-    def get_gatepass_details(self, request_id: str):
-        # GET /api/gatepasses/{id}
-        raise NotImplementedError
+    # ------------------------------------------------------------------
+    # Envelope-aware convenience helpers
+    # ------------------------------------------------------------------
+    def get_data(self, path: str, params: dict = None):
+        """GETs a single-item endpoint and unwraps {"data": ...}."""
+        return self._request("GET", path, params=params).get("data")
 
-    def approve_gatepass(self, request_id: str):
-        # PATCH /api/gatepasses/{id}/approve
-        raise NotImplementedError
+    def get_all_pages(self, path: str, params: dict = None, page_size: int = 100,
+                      hard_cap: int = 5000) -> list:
+        """Follows the {data, pagination} envelope across every page and
+        returns the combined list."""
+        params = dict(params or {})
+        params["page_size"] = min(page_size, 100)
+        page = 1
+        results = []
+        while True:
+            params["page"] = page
+            response = self._request("GET", path, params=params)
+            items = response.get("data") or []
+            results.extend(items)
+            pagination = response.get("pagination") or {}
+            total = pagination.get("total", len(results))
+            if not items or len(results) >= total or len(results) >= hard_cap:
+                break
+            page += 1
+        return results
 
-    def reject_gatepass(self, request_id: str, reason: str):
-        # PATCH /api/gatepasses/{id}/reject
-        raise NotImplementedError
+    # ------------------------------------------------------------------
+    # Auth
+    # ------------------------------------------------------------------
+    def login(self, hod_id: str, password: str) -> dict:
+        """POST /auth/login — returns the full response dict (token + user)."""
+        return self._request("POST", "/auth/login", json_body={
+            "username": hod_id,
+            "password": password,
+        })
 
-    # ---- Notifications -----------------------------------------------
-    def publish_notification(self, payload: dict):
-        # POST /api/notifications
-        raise NotImplementedError
+    # ------------------------------------------------------------------
+    # Dashboard
+    # ------------------------------------------------------------------
+    def get_dashboard_summary(self) -> dict:
+        """GET /hod/dashboard"""
+        return self.get_data("/hod/dashboard") or {}
 
-    def get_my_notifications(self):
-        # GET /api/notifications/created-by-me
-        raise NotImplementedError
+    # ------------------------------------------------------------------
+    # Gate passes
+    # ------------------------------------------------------------------
+    def get_pending_gatepasses(self) -> list:
+        """GET /gatepasses/pending — returns all pending gate pass records."""
+        return self.get_all_pages("/gatepasses/pending")
 
-    # ---- Attendance --------------------------------------------------
-    def get_department_attendance(self, filters: dict):
-        # GET /api/attendance/department
-        raise NotImplementedError
+    def get_gatepasses(self, filters: dict = None) -> list:
+        """GET /gatepasses — returns gate passes with optional filters."""
+        return self.get_all_pages("/gatepasses", params=filters)
 
-    def get_student_attendance(self, student_id: str):
-        # GET /api/attendance/student/{id}
-        raise NotImplementedError
+    def get_gatepass_details(self, request_id) -> dict:
+        """GET /gatepasses/{id}"""
+        return self.get_data(f"/gatepasses/{request_id}") or {}
 
-    # ---- Analytics ---------------------------------------------------
-    def get_department_analytics(self):
-        # GET /api/analytics/department/attendance
-        raise NotImplementedError
+    def approve_gatepass(self, request_id) -> dict:
+        """PATCH /gatepasses/{id}/approve"""
+        return self._request("PATCH", f"/gatepasses/{request_id}/approve")
 
-    def get_subject_analytics(self):
-        # GET /api/analytics/department/subjects
-        raise NotImplementedError
+    def reject_gatepass(self, request_id, reason: str) -> dict:
+        """PATCH /gatepasses/{id}/reject"""
+        return self._request("PATCH", f"/gatepasses/{request_id}/reject",
+                             json_body={"remarks": reason})
+
+    # ------------------------------------------------------------------
+    # Notifications
+    # ------------------------------------------------------------------
+    def publish_notification(self, payload: dict) -> dict:
+        """POST /notifications"""
+        return self._request("POST", "/notifications", json_body=payload)
+
+    def get_my_notifications(self) -> list:
+        """GET /notifications/created-by-me"""
+        return self.get_all_pages("/notifications/created-by-me")
+
+    # ------------------------------------------------------------------
+    # Attendance
+    # ------------------------------------------------------------------
+    def get_department_attendance(self, filters: dict = None) -> list:
+        """GET /attendance/department"""
+        return self.get_all_pages("/attendance/department", params=filters)
+
+    # ------------------------------------------------------------------
+    # Analytics
+    # ------------------------------------------------------------------
+    def get_department_analytics(self) -> list:
+        """GET /analytics/attendance/departments"""
+        return self.get_all_pages("/analytics/attendance/departments")
+
+    def get_subject_analytics(self) -> list:
+        """GET /analytics/attendance/subjects"""
+        return self.get_all_pages("/analytics/attendance/subjects")
+
+    def get_analytics_overview(self) -> dict:
+        """GET /analytics/overview"""
+        return self.get_data("/analytics/overview") or {}
+
+    # ------------------------------------------------------------------
+    # Reports
+    # ------------------------------------------------------------------
+    def get_reports(self, report_type: str, params: dict = None) -> list:
+        """GET /reports/{type}"""
+        return self.get_all_pages(f"/reports/{report_type}", params=params)
+
+
+# Single shared instance imported by every service module.
+api_client = ApiClient()

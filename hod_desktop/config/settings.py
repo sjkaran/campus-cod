@@ -6,19 +6,22 @@ data-source mode (mock vs. future API) never need to be hunted down
 across UI files.
 """
 
+import os
+
 APP_NAME = "Smart Campus — HOD Portal"
-APP_VERSION = "0.1.0-stage1"
+APP_VERSION = "0.2.0-stage2"
 
 WINDOW_MIN_WIDTH = 1180
 WINDOW_MIN_HEIGHT = 720
 
-# Stage 1 = mock data layer. Stage 2 flips this to "api" once the
-# FastAPI backend exists; services/*.py read this flag to decide
-# whether to call mock/mock_data.py or api/api_client.py.
-DATA_SOURCE_MODE = "mock"  # "mock" | "api"
+# Stage 2: live API. Set DATA_SOURCE_MODE = "mock" to fall back to
+# the Stage 1 in-memory mock layer while the backend is unavailable.
+DATA_SOURCE_MODE = "api"  # "mock" | "api"
 
-# Placeholder — populated from config/env in Stage 2.
-API_BASE_URL = "https://api.smartcampus.local"
+# Override by setting HOD_API_BASE_URL before launching the app, e.g.:
+#   (Windows PowerShell)  $env:HOD_API_BASE_URL = "http://192.168.1.20:8000/api"
+#   (macOS/Linux)         export HOD_API_BASE_URL="http://192.168.1.20:8000/api"
+API_BASE_URL = os.environ.get("HOD_API_BASE_URL", "http://localhost:8000/api")
 
 
 class Colors:

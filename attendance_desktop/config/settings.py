@@ -1,7 +1,9 @@
 """Central configuration. No API URLs or secrets anywhere else."""
+import os
+
 APP_NAME = "Smart Campus — Attendance Faculty"
-USE_MOCK_API = True                 # Stage 2: set False -> HttpApiClient
-API_BASE_URL = "http://localhost:8000"   # FUTURE API INTEGRATION
+USE_MOCK_API = False                # Stage 2: live HttpApiClient
+API_BASE_URL = os.environ.get("ATTENDANCE_API_BASE_URL", "http://localhost:8000")
 QR_ROTATE_SECONDS = 30              # QR payload rotation (adapter-level)
 DEFAULT_SESSION_MINUTES = 10        # QR acceptance window shown in UI
 MOCK_SUBMIT_FAILS = False           # flip to True to test SUBMISSION_FAILED
