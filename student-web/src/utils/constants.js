@@ -50,4 +50,4 @@ export const SESSION_KEY = 'sc_student_session';
 // window.SMART_CAMPUS_API_BASE_URL in index.html before app.js loads,
 // e.g. if the backend runs on another machine:
 //   <script>window.SMART_CAMPUS_API_BASE_URL = 'http://192.168.1.20:8000/api';</script>
-export const API_BASE_URL = 'http://localhost:8000/api';
+export const API_BASE_URL = 'https://discerning-liberation-production-e871.up.railway.app/api';

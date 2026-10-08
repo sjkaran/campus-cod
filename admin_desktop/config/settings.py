@@ -90,5 +90,5 @@ PAGE_SIZE = 25  # simulated pagination page size for large tables
 # launching the app, e.g. if the backend runs on another machine/port:
 #   (Windows PowerShell)  $env:ADMIN_API_BASE_URL = "http://192.168.1.20:8000/api"
 #   (macOS/Linux)         export ADMIN_API_BASE_URL="http://192.168.1.20:8000/api"
-API_BASE_URL = os.environ.get("ADMIN_API_BASE_URL", "http://localhost:8000/api")
+API_BASE_URL = os.environ.get("ADMIN_API_BASE_URL", "https://discerning-liberation-production-e871.up.railway.app/api")
 API_TIMEOUT_SECONDS = 10

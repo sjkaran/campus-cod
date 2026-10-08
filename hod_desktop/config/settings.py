@@ -21,7 +21,7 @@ DATA_SOURCE_MODE = "api"  # "mock" | "api"
 # Override by setting HOD_API_BASE_URL before launching the app, e.g.:
 #   (Windows PowerShell)  $env:HOD_API_BASE_URL = "http://192.168.1.20:8000/api"
 #   (macOS/Linux)         export HOD_API_BASE_URL="http://192.168.1.20:8000/api"
-API_BASE_URL = os.environ.get("HOD_API_BASE_URL", "http://localhost:8000/api")
+API_BASE_URL = os.environ.get("HOD_API_BASE_URL", "https://discerning-liberation-production-e871.up.railway.app/api")
 
 
 class Colors:
